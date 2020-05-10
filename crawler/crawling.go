@@ -8,19 +8,17 @@ import (
 	"github.com/pignuante/test-crawler/utils"
 )
 
-var baseURI string = "https://kr.indeed.com/jobs?q=python&limit=50"
-
 // ExtractedJob info struct
 type ExtractedJob struct {
-	id       string
-	title    string
-	salary   string
-	location string
-	summary  string
+	ID       string
+	Title    string
+	Salary   string
+	Location string
+	Summary  string
 }
 
 // GetPage get Page info
-func GetPage(page int, mainC chan<- []ExtractedJob) {
+func GetPage(baseURI string, page int, mainC chan<- []ExtractedJob) {
 	var jobs []ExtractedJob
 	c := make(chan ExtractedJob)
 	pageURI := baseURI + "&start=" + strconv.Itoa(page*50)
@@ -40,32 +38,11 @@ func GetPage(page int, mainC chan<- []ExtractedJob) {
 		job := <-c
 		jobs = append(jobs, job)
 	}
-
 	mainC <- jobs
-
-}
-
-// ExtractJob make job info struct
-func ExtractJob(card *goquery.Selection, c chan<- ExtractedJob) {
-	id, exist := card.Attr("data-jk")
-	title := utils.CleanString(card.Find(".title>a").Text())
-	location := utils.CleanString(card.Find(".sjcl").Text())
-	salary := utils.CleanString(card.Find(".salaryText").Text())
-	summary := utils.CleanString(card.Find(".summary").Text())
-	if exist {
-		job := ExtractedJob{
-			id:       id,
-			title:    title,
-			location: location,
-			salary:   salary,
-			summary:  summary}
-
-		c <- job
-	}
 }
 
 // GetPages get pages info
-func GetPages() (pages int) {
+func GetPages(baseURI string) (pages int) {
 	pages = 0
 	res, err := http.Get(baseURI)
 	utils.CheckErr(err)
@@ -82,4 +59,23 @@ func GetPages() (pages int) {
 	})
 
 	return pages
+}
+
+// ExtractJob make job info struct
+func ExtractJob(card *goquery.Selection, c chan<- ExtractedJob) {
+	id, exist := card.Attr("data-jk")
+	title := utils.CleanString(card.Find(".title>a").Text())
+	location := utils.CleanString(card.Find(".sjcl").Text())
+	salary := utils.CleanString(card.Find(".salaryText").Text())
+	summary := utils.CleanString(card.Find(".summary").Text())
+	if exist {
+		job := ExtractedJob{
+			ID:       id,
+			Title:    title,
+			Location: location,
+			Salary:   salary,
+			Summary:  summary}
+
+		c <- job
+	}
 }

@@ -1,55 +1,32 @@
 package main
 
 import (
-	"encoding/csv"
-	"fmt"
 	"os"
+	"strings"
 
-	"github.com/cheggaaa/pb"
-	"github.com/pignuante/test-crawler/crawler"
+	"github.com/pignuante/test-crawler/scrapper"
+
+	"github.com/labstack/echo"
 	"github.com/pignuante/test-crawler/utils"
-	"github.com/schollz/progressbar"
 )
 
-func main() {
-	totalPages := getPages()
-	c := make(chan []extractedJob)
-	var jobs []extractedJob
+const fileName string = "jobs.csv"
 
-	// bar := progressbar.Default(int64(totalPages))
-	bar := pb.StartNew(totalPages)
-	for i := 0; i < totalPages; i++ {
-		bar.Increment()
-		go crawler.getPage(i, c)
-		// jobs = append(jobs, ...)
-	}
-	bar.Finish()
-
-	for i := 0; i < totalPages; i++ {
-		extractedJobs := <-c
-		jobs = append(jobs, extractedJobs...)
-	}
-
-	writeJobsToCsv(jobs)
+func handleHome(c echo.Context) error {
+	return c.File("./index.html")
 }
 
-func writeJobsToCsv(jobs []crawler.ExtractedJob) {
-	file, err := os.Create("./jobs.csv")
-	utils.CheckErr(err)
-	w := csv.NewWriter(file)
-	defer w.Flush()
+func handleScrape(c echo.Context) error {
+	defer os.Remove(fileName)
+	term := strings.ToLower(utils.CleanString(c.FormValue("term")))
+	scrapper.Scrape(term)
+	return c.Attachment(fileName, fileName)
+}
 
-	headers := []string{"", "Title", "Location", "Salary", "Summary"}
-
-	wErr := w.Write(headers)
-	utils.CheckErr(wErr)
-
-	bar := progressbar.Default(int64(len(jobs)))
-	for _, job := range jobs {
-		bar.Add(1)
-		jobSlice := []string{"https://kr.indeed.com/viewjob?jk=" + job.id, job.title, job.location, job.salary, job.summary}
-		jwErr := w.Write(jobSlice)
-		utils.CheckErr(jwErr)
-	}
-	fmt.Println("Done")
+func main() {
+	e := echo.New()
+	e.GET("/", handleHome)
+	e.POST("/scrape", handleScrape)
+	e.Logger.Fatal(e.Start(":1190"))
+	// scrapper.Scrape("term")
 }
